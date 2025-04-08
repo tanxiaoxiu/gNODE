@@ -1,0 +1,16 @@
+C.hiranonis
+C.difficile
+P.mirabilis
+C.scindens
+R.obeum
+C.ramosum
+B.ovatus
+A.muciniphila
+P.distasonis
+B.fragilis
+B.vulgatus
+E.faecalis
+K.oxytoca
+L.reuteri
+R.hominis
+E.coli
