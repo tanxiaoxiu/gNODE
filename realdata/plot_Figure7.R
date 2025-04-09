@@ -11,7 +11,7 @@ library(dplyr)
 library(RColorBrewer)
 
 
-setwd("/lustre/home/acct-clswt/clswt-xiaoxiutan/p3_glv/realdata/data_diet/data_2")
+setwd("~/gNODE/realdata/data_diet/data")
 data_diet_filter <- read.delim("data_diet_filter.txt",  sep = '\t', check.names = FALSE)
 data_diet_filter <- na.omit(data_diet_filter)
 Group <- data_diet_filter[,c(1,4)]
@@ -45,7 +45,7 @@ df2 <- merge(index,groups,by = 'samples')
 df2$Group <- factor(df2$Group, levels = c("High_fiber1", "Low_fiber","High_fiber2"))
 
 
-###Figure_S7A
+###Figure7A
 #Shannon
 color=c("#1597A5","#FFC24B","#FEB3AE")
 p1 <- ggplot(df2,aes(x=Group,y=Shannon))+
@@ -77,9 +77,9 @@ p1 <- ggplot(df2,aes(x=Group,y=Shannon))+
         axis.title = element_text(size = 26), 
         axis.text = element_text(size = 24),   
         plot.title = element_text(size = 28))
-ggsave(filename="FigureA.png",plot=p1,device="png",dpi=600,units="in",width=7.8,height=5)
+ggsave(filename="Figure7A.png",plot=p1,device="png",dpi=600,units="in",width=7.8,height=5)
 
-###Figure_S7B
+###Figure7B
 #Simpson
 color=c("#1597A5","#FFC24B","#FEB3AE")
 p2 <- ggplot(df2,aes(x=Group,y=Simpson))+
@@ -111,9 +111,9 @@ p2 <- ggplot(df2,aes(x=Group,y=Simpson))+
         axis.title = element_text(size = 26), 
         axis.text = element_text(size = 24),   
         plot.title = element_text(size = 28))
-ggsave(filename="FigureB.png",plot=p2,device="png",dpi=600,units="in",width=7.8,height=5)
+ggsave(filename="Figure7B.png",plot=p2,device="png",dpi=600,units="in",width=7.8,height=5)
 
-###Figure_S7C
+###Figure7C
 #PCoA/bray-curtis
 dist <- vegdist(OTU, method="bray", binary=F)
 pcoa <- cmdscale(dist, k=(nrow(OTU) - 1), eig=T)
@@ -155,5 +155,5 @@ p3 <- ggplot(pcoa_result,aes(x=PCoA1,y=PCoA2,
         panel.grid=element_blank(),
         legend.spacing.y = unit(2.0, "cm")) 
 
-ggsave(filename="FigureC.png",plot=p3,device="png",dpi=600,units="in",width=10,height=5)
+ggsave(filename="Figure7C.png",plot=p3,device="png",dpi=600,units="in",width=10,height=5)
 
