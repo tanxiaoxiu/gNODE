@@ -1,153 +1,219 @@
-#data description
-rm(list = ls(all = TRUE)) 
+#Figure5
+library(ggplot2)
+library(dplyr)
+library(patchwork)
 library(tidyverse)
 library(readxl)
-library(ggplot2)
-library(ggsignif)
-library(ggprism)
-library(vegan)
-library(picante)
-library(dplyr)
-library(RColorBrewer)
+library(pheatmap)
+library(reshape2)
+library(igraph)
+library(reticulate)
+library(tidyr)
+
+#Figure5A
+setwd("~/gNODE/realdata/data_cdiff/trajectory/comparison")
+base_path1 <- "~/gNODE/realdata/data_cdiff/trajectory/"
+
+Group <- c("Control","Case")
+base_folders <- c("NODE", "pNODE", "gNODE")
+
+path <- paste0(base_path1, "comparison")
+setwd(path)
+all_rrmse <- readRDS("all_rrmse.rds")
+all_rrmse$Group <- factor(all_rrmse$Group, levels = c("Control", "Case"))
+all_rrmse$Method <- factor(all_rrmse$Method, levels = c("NODE", "pNODE","gNODE"))
+
+# Calculate summary statistics (mean ± SD)
+summary_data <- all_rrmse %>%
+  group_by(Group, Method) %>%
+  summarise(
+    mean_rrmse = mean(rrmse, na.rm = TRUE),
+    se_rrmse = sd(rrmse, na.rm = TRUE)/sqrt(n()),
+    .groups = 'drop'
+  )
+
+# Create the plot
+plot2 <- ggplot(summary_data, aes(x = Group, y = mean_rrmse, fill = Method)) +
+  geom_col(
+    position = position_dodge(width = 0.8),  
+    width = 0.7, 
+    color = NA,  
+    linewidth = 0) +  
+  geom_errorbar(
+    aes(ymin = mean_rrmse - se_rrmse, ymax = mean_rrmse + se_rrmse),
+    position = position_dodge(width = 0.8),  
+    width = 0.2,
+    color = "black",
+    linewidth = 0.8
+  ) +
+  scale_fill_manual(values = c("#F9C89B","#7CA3B8","#CE8A8D")) +
+  xlab("Group") +
+  ylab("Relative RMSE") +
+  scale_y_continuous(breaks = seq(0, 1, 0.1)) +  
+  theme_bw() + 
+  theme(
+    plot.title = element_text(hjust = 0.5), 
+    text = element_text(size=28),
+    axis.title.x = element_text(size = 30),  
+    axis.title.y = element_text(size = 30, margin = margin(r = 15, unit = "pt")), 
+    axis.text.x = element_text(size = 28, color = "black"),  
+    axis.text.y = element_text(size = 28, color = "black"),
+    panel.grid.major = element_line(colour=NA),
+    panel.background = element_rect(fill="transparent", colour=NA),
+    plot.background = element_rect(fill="transparent", colour=NA),
+    panel.grid.minor = element_blank(),
+    legend.spacing.y = unit(0.5, 'cm')
+  ) +
+  guides(fill = guide_legend(byrow = TRUE))
+
+# Save the plot
+ggsave(
+  filename = "Figure5A.png",
+  plot = plot2,
+  device = "png",
+  dpi = 600,
+  units = "in",
+  width = 12,
+  height = 8
+)
 
 
-setwd("~/gNODE/realdata/data_cdiff/data")
+#Figure5B
+P <- 16
+setwd("~/gNODE/realdata/data_cdiff/Control/prediction")
 
-data_cdiff_filter <- read.delim("data_cdiff_filter.txt",  sep = '\t', check.names = FALSE)
-data_cdiff_filter$ID <- paste("Sample", 1:nrow(data_cdiff_filter), sep="")
-data_cdiff_filter <- data_cdiff_filter[, c("ID", setdiff(names(data_cdiff_filter), "ID"))]
-Group <- data_cdiff_filter[,c(1,4)]
-Group$Group <- factor(Group$Group, levels = c("Control", "Case"))
+alpha <- read.table("alpha_pre.csv", header = FALSE, sep = "\t")
+beta <- read.table("beta_pre.csv", header = FALSE, sep = ",")
+microbe_names <- read.table("~/gNODE/realdata/data_cdiff/data/microbe_name.txt", header = FALSE, sep = "\t")
 
-otu <- data_cdiff_filter[,-c(2:4)]
-row.names(otu) <- otu[,1]
-OTU <- otu[,-1]
+microbe_names <- as.vector(microbe_names$V1)
+rownames(beta) <- microbe_names
+colnames(beta) <- microbe_names
+rownames(alpha) <- microbe_names
 
-#Alpha-diversity
-df <- t(OTU)
-Shannon <- diversity(df, index = "shannon", MARGIN = 2, base = exp(1))
-Simpson <- diversity(df, index = "simpson", MARGIN = 2, base =  exp(1))
-Richness <- specnumber(df, MARGIN = 2)
-index <- as.data.frame(cbind(Shannon, Simpson, Richness))
-tdf <- t(df)
-tdf<-ceiling(as.data.frame(t(df)))
-obs_chao_ace <- t(estimateR(tdf))
-obs_chao_ace <- obs_chao_ace[rownames(index),]
-index$Chao <- obs_chao_ace[,2]
-index$Ace <- obs_chao_ace[,4]
-index$obs <- obs_chao_ace[,1]
-index$Pielou <- Shannon / log(Richness, 2)
-index$Goods_coverage <- 1 - colSums(df ==1) / colSums(df)
-#write.table(cbind(sample=c(rownames(index)),index),'diversity.index.txt', row.names = F, sep = '\t', quote = F)
-index$samples <- rownames(index)
-groups <- Group
-colnames(groups)[1:2] <- c('samples','Group')
-df2 <- merge(index,groups,by = 'samples')
-df2$Group <- factor(df2$Group, levels = c("Control", "Case"))
+p1 <- pheatmap(beta,
+               cluster_rows = FALSE,
+               cluster_cols = FALSE,
+               scale = "none",
+               color = colorRampPalette(c("#004995", "white", "#85242B"))(100),
+               breaks = seq(-1, 1, length.out = 101),  
+               center = 0,  
+               fontsize_row = 12,        
+               fontsize_col = 12,        
+               legend = F,
+               main = " ",
+               show_colnames = TRUE,
+               show_rownames = FALSE,
+               angle_col = 90)
 
-###Figure_S7A
-#Shannon
-color=c("#1597A5","#FEB3AE")
-p1 <- ggplot(df2,aes(x=Group,y=Shannon))+
-  stat_boxplot(geom = "errorbar", width=0.1,size=0.8)+
-  geom_boxplot(aes(fill=Group), 
-               outlier.colour="white",size=0.8)+
-  theme(panel.background =element_blank(), 
-        axis.line=element_line(),
-        plot.title = element_text(size=14))+
-  scale_fill_manual(values=color)+
-  geom_jitter(width = 0.2)+
-  geom_signif(comparisons = list(c("Control","Case")),
-              map_signif_level = T, 
-              step_increase = 0.08,
-              test = wilcox.test, 
-              tip_length = c(c(0,0),
-                             c(0,0),
-                             c(0,0)),
-              size=0.7,color="black")+
-  theme_prism(
-    base_fontface = "plain", 
-    #base_family = "serif", 
-    base_size = 24,  
-    base_line_size = 0.8, 
-    axis_text_angle = 0)+ 
-  theme(legend.position = 'none',
-        axis.title = element_text(size = 26), 
-        axis.text = element_text(size = 24),   
-        plot.title = element_text(size = 28))
-ggsave(filename="Figure5A.png",plot=p1,device="png",dpi=600,units="in",width=5,height=5)
+ggsave(filename="Interaction.png",plot=p1,device="png",dpi=600,units="in",width=3.6,height=4.9)
 
-###Figure_S7B
-#Simpson
-color=c("#1597A5","#FEB3AE")
-p2 <- ggplot(df2,aes(x=Group,y=Simpson))+
-  stat_boxplot(geom = "errorbar", width=0.1,size=0.8)+
-  geom_boxplot(aes(fill=Group), 
-               outlier.colour="white",size=0.8)+
-  theme(panel.background =element_blank(), 
-        axis.line=element_line(),
-        plot.title = element_text(size=14))+
-  scale_fill_manual(values=color)+
-  geom_jitter(width = 0.2)+
-  geom_signif(comparisons = list(c("Control","Case")),
-              map_signif_level = T, 
-              step_increase = 0.08,
-              test = wilcox.test,
-              tip_length = c(c(0,0),
-                             c(0,0),
-                             c(0,0)),
-              size=0.7,color="black")+
-  theme_prism(
-    base_fontface = "plain", 
-    #base_family = "serif", 
-    base_size = 24, 
-    base_line_size = 0.8, 
-    axis_text_angle = 0)+ 
-  theme(legend.position = 'none',
-        axis.title = element_text(size = 26), 
-        axis.text = element_text(size = 24),   
-        plot.title = element_text(size = 28))
-ggsave(filename="Figure5B.png",plot=p2,device="png",dpi=600,units="in",width=5,height=5)
+p2 <- pheatmap(alpha,
+               cluster_rows = FALSE,
+               cluster_cols = FALSE,
+               scale = "none",
+               color = colorRampPalette(c("#004995", "white", "#85242B"))(100),
+               breaks = seq(-1, 1, length.out = 101),  
+               center = 0,  
+               fontsize_row = 14,        
+               fontsize_col = 14,        
+               legend = TRUE,
+               main = "",
+               show_colnames = FALSE)
 
-###Figure_S7C
-#PCoA/bray-curtis
-dist <- vegdist(OTU, method="bray", binary=F)
-pcoa <- cmdscale(dist, k=(nrow(OTU) - 1), eig=T)
-pcoa_points <- as.data.frame(pcoa$points)
-sum_eig <- sum(pcoa$eig)
-eig_percent <- round(pcoa$eig/sum_eig*100,1)
-colnames(pcoa_points) <- paste0("PCoA", 1:3)
-pcoa_points$ID <- rownames(pcoa_points)
-pcoa_result <- merge(pcoa_points, Group, by = 'ID', all.x = TRUE)
-#PERMANOVA
-dune.div <- adonis2(OTU ~ Group, data = Group, permutations = 999, method="bray")
-dune_adonis2_2 <- paste0("R²=",round(dune.div$R2,2), ", P-value=", dune.div$`Pr(>F)`)
-color=c("#1597A5","#FEB3AE")
-p3 <- ggplot(pcoa_result,aes(x=PCoA1,y=PCoA2,
-                             color=Group,shape=Group))+
-  theme_bw()+
-  geom_point(size=1.8)+
-  theme(panel.grid = element_blank())+
-  geom_vline(xintercept = 0,lty="dashed")+
-  geom_hline(yintercept = 0,lty="dashed")+
-  labs(x=paste("PCoA 1 (", eig_percent[1], "%)", sep=""),
-       y=paste0("PCoA 2 (", eig_percent[2], "%)", sep=""),
-       title= dune_adonis2_2)+
-  stat_ellipse(data=pcoa_result,
-               geom = "polygon",level=0.95,
-               linetype = 2,size=0.5,
-               aes(fill=Group),
-               alpha=0.2,
-               show.legend = T)+
-  scale_color_manual(values = color) +
-  scale_fill_manual(values = c("#1597A5","#FEB3AE"))+
-  theme(axis.title.x=element_text(size=22),
-        axis.title.y=element_text(size=22,angle=90),
-        axis.text.y=element_text(size=20,color = "black"),
-        axis.text.x=element_text(size=20,color = "black"),
-        legend.title = element_text(size = 22),  
-        legend.text = element_text(size = 20), 
-        plot.title = element_text(size = 22), 
-        panel.grid=element_blank()) 
+ggsave(filename="Growth.png",plot=p2,device="png",dpi=600,units="in",width=3,height=4)
 
-ggsave(filename="Figure5C.png",plot=p3,device="png",dpi=600,units="in",width=8,height=5)
+
+#Figure5C
+P <- 16
+setwd("~/gNODE/realdata/data_cdiff/Case/prediction")
+alpha <- read.table("alpha_pre.csv", header = FALSE, sep = "\t")
+beta <- read.table("beta_pre.csv", header = FALSE, sep = ",")
+microbe_names <- read.table("~/gNODE/realdata/data_cdiff/data/microbe_name.txt", header = FALSE, sep = "\t")
+microbe_names <- as.vector(microbe_names$V1)
+rownames(beta) <- microbe_names
+colnames(beta) <- microbe_names
+rownames(alpha) <- microbe_names
+
+p1 <- pheatmap(beta,
+               cluster_rows = FALSE,
+               cluster_cols = FALSE,
+               scale = "none",
+               color = colorRampPalette(c("#004995", "white", "#85242B"))(100),
+               breaks = seq(-1, 1, length.out = 101),  
+               center = 0,  
+               fontsize_row = 12,        
+               fontsize_col = 12,        
+               legend = F,
+               main = " ",
+               show_colnames = TRUE,
+               show_rownames = FALSE,
+               angle_col = 90)
+ggsave(filename="Interaction.png",plot=p1,device="png",dpi=600,units="in",width=3.6,height=4.9)
+
+p2 <- pheatmap(alpha,
+               cluster_rows = FALSE,
+               cluster_cols = FALSE,
+               scale = "none",
+               color = colorRampPalette(c("#004995", "white", "#85242B"))(100),
+               breaks = seq(-1, 1, length.out = 101),  
+               center = 0,  
+               fontsize_row = 14,        
+               fontsize_col = 14,        
+               legend = TRUE,
+               main = "",
+               show_colnames = FALSE)
+ggsave(filename="Growth.png",plot=p2,device="png",dpi=600,units="in",width=3,height=4)
+
+#Figure5D
+P <- 16
+setwd("~/gNODE/realdata/data_cdiff/Case/prediction")
+
+beta <- read.table("beta_pre.csv", header = FALSE, sep = ",")
+microbe_names <- read.table("~/gNODE/realdata/data_cdiff/data/microbe_name.txt", header = FALSE, sep = "\t")
+
+microbe_names <- as.vector(microbe_names$V1)
+rownames(beta) <- microbe_names
+colnames(beta) <- microbe_names
+
+library(pheatmap)
+beta_new <- as.data.frame(matrix(0, nrow = nrow(beta), ncol = ncol(beta), dimnames = list(rownames(beta), colnames(beta)))) 
+beta_new["C.difficile",] <- beta["C.difficile",]
+beta_new[,"C.difficile"] <- beta[,"C.difficile"]
+
+A <- as.matrix(beta_new)
+non_zero_indices <- which(A != 0, arr.ind = TRUE)  
+non_zero_elements <- A[non_zero_indices]  
+sorted_indices <- order(abs(non_zero_elements), decreasing = TRUE)
+top_50_count <- floor(length(sorted_indices) / 2)
+top_50_indices <- non_zero_indices[sorted_indices[1:top_50_count], ]
+A_filtered <- matrix(0, nrow = nrow(A), ncol = ncol(A))
+A_filtered[top_50_indices] <- non_zero_elements[sorted_indices[1:top_50_count]]
+rownames(A_filtered) <- rownames(A)
+colnames(A_filtered) <- colnames(A)
+A_filtered <- t(A_filtered)
+
+g <- graph_from_adjacency_matrix(A_filtered, mode = "directed", weighted = TRUE, diag = FALSE)
+E(g)$color <- ifelse(E(g)$weight > 0, "#F9A6A0", "#BCCBE5")
+V(g)$label <- rownames(beta)
+V(g)$color <- "#FFD5AB"
+layout_custom <- layout_in_circle(g)  
+center_node <- which(V(g)$name == "C.difficile")  
+layout_custom[center_node, ] <- c(0, 0)
+other_nodes <- setdiff(1:vcount(g), center_node)
+angle <- seq(0, 2*pi, length.out = length(other_nodes) + 1)[-1] 
+layout_custom[other_nodes, ] <- cbind(cos(angle), sin(angle))  
+width_in_pixels <- 14 * 300
+height_in_pixels <- 12 * 300
+png(file = "Figure8.png", width = width_in_pixels, height_in_pixels, res = 600)
+par(mar=c(0, 0, 0, 0)) 
+plot(g, layout = layout_custom,  
+     edge.width = abs(E(g)$weight)*10^1.4,
+     vertex.label.color = "black", 
+     vertex.size = 16,  
+     vertex.frame.color = "#FFD5AB",
+     edge.arrow.size = 1.5, 
+     edge.curved = 0.2, 
+     vertex.label.cex = 1.6,
+     edge.lty = 1)  
+dev.off()

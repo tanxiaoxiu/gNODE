@@ -21,9 +21,7 @@ generate_glv_parameters <- function(p, seed) {
     diag(A_temp) <- -1
     A_temp
   }
-  
   r <- runif(p)
-  
   return(list(A = A, r = r))
 }
 

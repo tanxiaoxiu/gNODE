@@ -1,4 +1,4 @@
-#data description
+#Figure_S4
 rm(list = ls(all = TRUE)) 
 library(tidyverse)
 library(readxl)
@@ -11,16 +11,17 @@ library(dplyr)
 library(RColorBrewer)
 
 
-setwd("~/gNODE/realdata/data_diet/data")
-data_diet_filter <- read.delim("data_diet_filter.txt",  sep = '\t', check.names = FALSE)
-data_diet_filter <- na.omit(data_diet_filter)
-Group <- data_diet_filter[,c(1,4)]
-Group$Group <- factor(Group$Group, levels = c("High_fiber1", "Low_fiber","High_fiber2"))
+setwd("~/gNODE/realdata/data_cdiff/data")
 
-otu <- data_diet_filter[,-c(2:4)]
+data_cdiff_filter <- read.delim("data_cdiff_filter.txt",  sep = '\t', check.names = FALSE)
+data_cdiff_filter$ID <- paste("Sample", 1:nrow(data_cdiff_filter), sep="")
+data_cdiff_filter <- data_cdiff_filter[, c("ID", setdiff(names(data_cdiff_filter), "ID"))]
+Group <- data_cdiff_filter[,c(1,4)]
+Group$Group <- factor(Group$Group, levels = c("Control", "Case"))
+
+otu <- data_cdiff_filter[,-c(2:4)]
 row.names(otu) <- otu[,1]
 OTU <- otu[,-1]
-
 
 #Alpha-diversity
 df <- t(OTU)
@@ -42,12 +43,11 @@ index$samples <- rownames(index)
 groups <- Group
 colnames(groups)[1:2] <- c('samples','Group')
 df2 <- merge(index,groups,by = 'samples')
-df2$Group <- factor(df2$Group, levels = c("High_fiber1", "Low_fiber","High_fiber2"))
+df2$Group <- factor(df2$Group, levels = c("Control", "Case"))
 
-
-###Figure7A
+###Figure_S4A
 #Shannon
-color=c("#1597A5","#FFC24B","#FEB3AE")
+color=c("#1597A5","#FEB3AE")
 p1 <- ggplot(df2,aes(x=Group,y=Shannon))+
   stat_boxplot(geom = "errorbar", width=0.1,size=0.8)+
   geom_boxplot(aes(fill=Group), 
@@ -57,9 +57,7 @@ p1 <- ggplot(df2,aes(x=Group,y=Shannon))+
         plot.title = element_text(size=14))+
   scale_fill_manual(values=color)+
   geom_jitter(width = 0.2)+
-  geom_signif(comparisons = list(c("High_fiber1","Low_fiber"),
-                                 c("High_fiber1","High_fiber2"),
-                                 c("Low_fiber","High_fiber2")),
+  geom_signif(comparisons = list(c("Control","Case")),
               map_signif_level = T, 
               step_increase = 0.08,
               test = wilcox.test, 
@@ -77,11 +75,11 @@ p1 <- ggplot(df2,aes(x=Group,y=Shannon))+
         axis.title = element_text(size = 26), 
         axis.text = element_text(size = 24),   
         plot.title = element_text(size = 28))
-ggsave(filename="Figure7A.png",plot=p1,device="png",dpi=600,units="in",width=7.8,height=5)
+ggsave(filename="FigureS4A.png",plot=p1,device="png",dpi=600,units="in",width=5,height=5)
 
-###Figure7B
+###Figure_S4B
 #Simpson
-color=c("#1597A5","#FFC24B","#FEB3AE")
+color=c("#1597A5","#FEB3AE")
 p2 <- ggplot(df2,aes(x=Group,y=Simpson))+
   stat_boxplot(geom = "errorbar", width=0.1,size=0.8)+
   geom_boxplot(aes(fill=Group), 
@@ -91,9 +89,7 @@ p2 <- ggplot(df2,aes(x=Group,y=Simpson))+
         plot.title = element_text(size=14))+
   scale_fill_manual(values=color)+
   geom_jitter(width = 0.2)+
-  geom_signif(comparisons = list(c("High_fiber1","Low_fiber"),
-                                 c("High_fiber1","High_fiber2"),
-                                 c("Low_fiber","High_fiber2")),
+  geom_signif(comparisons = list(c("Control","Case")),
               map_signif_level = T, 
               step_increase = 0.08,
               test = wilcox.test,
@@ -111,9 +107,9 @@ p2 <- ggplot(df2,aes(x=Group,y=Simpson))+
         axis.title = element_text(size = 26), 
         axis.text = element_text(size = 24),   
         plot.title = element_text(size = 28))
-ggsave(filename="Figure7B.png",plot=p2,device="png",dpi=600,units="in",width=7.8,height=5)
+ggsave(filename="FigureS4B.png",plot=p2,device="png",dpi=600,units="in",width=5,height=5)
 
-###Figure7C
+###Figure_S4C
 #PCoA/bray-curtis
 dist <- vegdist(OTU, method="bray", binary=F)
 pcoa <- cmdscale(dist, k=(nrow(OTU) - 1), eig=T)
@@ -121,12 +117,12 @@ pcoa_points <- as.data.frame(pcoa$points)
 sum_eig <- sum(pcoa$eig)
 eig_percent <- round(pcoa$eig/sum_eig*100,1)
 colnames(pcoa_points) <- paste0("PCoA", 1:3)
-pcoa_points$Sample <- rownames(pcoa_points)
-pcoa_result <- merge(pcoa_points, Group, by = 'Sample', all.x = TRUE)
+pcoa_points$ID <- rownames(pcoa_points)
+pcoa_result <- merge(pcoa_points, Group, by = 'ID', all.x = TRUE)
 #PERMANOVA
 dune.div <- adonis2(OTU ~ Group, data = Group, permutations = 999, method="bray")
 dune_adonis2_2 <- paste0("R²=",round(dune.div$R2,2), ", P-value=", dune.div$`Pr(>F)`)
-color=c("#1597A5","#FFC24B","#FEB3AE")
+color=c("#1597A5","#FEB3AE")
 p3 <- ggplot(pcoa_result,aes(x=PCoA1,y=PCoA2,
                              color=Group,shape=Group))+
   theme_bw()+
@@ -144,16 +140,14 @@ p3 <- ggplot(pcoa_result,aes(x=PCoA1,y=PCoA2,
                alpha=0.2,
                show.legend = T)+
   scale_color_manual(values = color) +
-  scale_fill_manual(values = c("#1597A5","#FFC24B","#FEB3AE"))+
+  scale_fill_manual(values = c("#1597A5","#FEB3AE"))+
   theme(axis.title.x=element_text(size=22),
         axis.title.y=element_text(size=22,angle=90),
         axis.text.y=element_text(size=20,color = "black"),
         axis.text.x=element_text(size=20,color = "black"),
         legend.title = element_text(size = 22),  
-        legend.text = element_text(size = 16), 
-        plot.title = element_text(size = 18), 
-        panel.grid=element_blank(),
-        legend.spacing.y = unit(2.0, "cm")) 
+        legend.text = element_text(size = 20), 
+        plot.title = element_text(size = 22), 
+        panel.grid=element_blank()) 
 
-ggsave(filename="Figure7C.png",plot=p3,device="png",dpi=600,units="in",width=10,height=5)
-
+ggsave(filename="FigureS4C.png",plot=p3,device="png",dpi=600,units="in",width=8,height=5)
